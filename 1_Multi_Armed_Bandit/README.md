@@ -358,7 +358,7 @@ For each action, maintain:
 > | **Final Decision**                       | Gives clear, actionable results once the experiment ends. | No final conclusion, constantly optimizes actions. |
 
 ## Problem 3 (Social Mobile)
-#$Problem Formulation
+### Problem Formulation
 
 #### **Agents:**
 - **Our mobile phone** is a learning agent, capable of reinforcement learning, engaging in a **single-state decision process** where it repeatedly chooses from a set of actions.
