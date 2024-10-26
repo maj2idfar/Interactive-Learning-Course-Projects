@@ -358,15 +358,85 @@ For each action, maintain:
 > | **Final Decision**                       | Gives clear, actionable results once the experiment ends. | No final conclusion, constantly optimizes actions. |
 
 ## Problem 3 (Social Mobile)
-### Formulation of the Problem
-Suppose we have `m` agents (index of our agent is $0$), with each having `n` possible actions. ALso, the probability of receiving rewards for the `i`th agent is $p_i$ ($0 \le i < m$). 
+#$Problem Formulation
 
-Since our agent can observe the actions choices of other agents, it can use them to tackle the problem of sparse rewards, by combining individual learning with social learning. To achieve this, I investigate two methods which are explained in the following:
+#### **Agents:**
+- **Our mobile phone** is a learning agent, capable of reinforcement learning, engaging in a **single-state decision process** where it repeatedly chooses from a set of actions.
+- Other mobile phones in the environment follow **fixed, non-learning policies**, meaning their behavior is consistent over time and does not change in response to feedback.
 
-#### Two Q Values:
-Here, we have two distinct sets of `Q values`: one is based on agent's own experiences (`q_values_own`), and the other one is based on observations of other agents (`q_values_social`). The former is updated with the direct rewards agent receives from user, while for updating the latter, we should define another reward function:
+> **How to estimate the policies of other agents (social learning)?**
+> - Our mobile phone observes the last 30 actions of other mobile phones.
+> - For each agent, it estimates their **policy** by calculating the empirical frequency of each action based on their observed action history.
+>   - This is done using the `social_learning` method in the `RL_Agent` class.
 
-#### Combined Rewards:
+> **How to use these observations?**
+> - Once the individual policies of the observed agents are estimated, they are combined to form an **aggregated policy**, which reflects the average behavior of all observed agents.
+>   - The method `aggregate_policy` in the `RL_Agent` class computes this.
+> - The aggregated policy serves as a **general guide** for which actions are most commonly preferred by other agents.
 
+#### **Actions:**
+- **All agents** can choose from the same set of `n` actions in the environment.
+
+#### **Rewards:**
+- The mobile phone receives **sparse rewards** from the user, making it difficult to learn purely from its own experiences in some trials. 
+- In trials where rewards are missing, the agent uses the observed behavior of other agents to guide its decision-making.
+
+#### **Action Selection:**
+- The agent combines its **learned policy** (from its own experiences) with the **socially aggregated policy** (from observing other agents) using a parameter $\alpha$, which indicates the agent’s **level of reliance on social data**. 
+  - Initially, $\alpha$ is high (due to limited feedback), indicating a stronger reliance on the aggregated social policies.
+  - $\alpha$ **decreases over time** as the agent collects more rewards, reflecting a gradual shift towards relying more on its own learned policy.
+
+#### **Objective:**
+- The objective of the mobile phone is to **maximize its cumulative reward** over time by providing the best possible service to the user.
+
+By incorporating knowledge from other agents, the phone can make more informed decisions, even when direct rewards are sparse. This allows the phone to **reduce exploration time** and avoid suboptimal actions early on. Over time, the phone adapts and updates its policy more from its own rewards while using social learning to minimize **cumulative regret**.
+
+---
+
+### **Potential Benefits of This Approach**
+
+1. **Accelerated Learning via Social Learning**: Observing the actions of consistently behaving agents allows the mobile phone to **shortcut some of the initial exploration** it would need if relying solely on its own sparse experiences. This reduces the time it takes to identify promising actions.
+  
+2. **Handling Sparse Rewards**: In an environment with **random and sparse rewards**, waiting for feedback from its own actions can be inefficient. By leveraging **social learning**, the mobile phone can gain useful insights from observed policies, helping guide exploration and improve decision-making in the absence of immediate reward signals.
+
+3. **Dynamic Weighting**: The agent dynamically adjusts its reliance on social versus individual experience through the \( \alpha \) parameter. This adaptive approach ensures efficient learning by using social information early on and progressively shifting towards the agent’s own learned policy as more reward signals become available.
 
 ### Exploration-Exploitation Strategy
+
+I used **epsilon-greedy strategy with decaying epsilon** for controlling the balance between exploration and exploitation.
+
+---
+
+**How it works?**
+- In the **epsilon-greedy strategy**, the agent selects a random action (exploration) with probability $\epsilon$, and with probability $1 - \epsilon$, it chooses the action that currently has the highest expected reward (exploitation).
+  
+- **Initially**: The agent starts with a higher value of $\epsilon$, encouraging more exploration when it has limited information about the environment and potential rewards of different actions. By exploring more upfront, the agent gathers valuable information on which actions are generally the most rewarding.
+  
+- **Over Time (Now with Decay)**: As the agent learns more through experience, the value of $\epsilon$ **decays** over time, gradually reducing the emphasis on exploration. This decay allows the agent to focus more on **exploiting** the actions it has already learned to be rewarding while minimizing the chances of taking random, risky actions as it becomes more confident in its policy.
+
+**What is the most significant benefits of this?**
+
+The exploration driven by higher $\epsilon$ early on is critical for preventing the agent from getting stuck in **local optima**. By continually trying unexplored actions with some probability, the agent gathers more diverse experiences that can eventually lead it to discover globally optimal actions.
+
+---
+
+#### Managing the exploration-exploitation balance  in an environment with sparse rewards 
+
+Both α  (reliance on social data) and ϵ  (degree of exploration) should decrease as more rewards are collected. Initially, high α and ϵ promote social-guided exploration since the agent doesn't yet understand which actions are beneficial based on the rewards it receives. However, as the agent gradually learns through personal experience, ϵ can decay (focusing more on exploitation), and likewise, α can decrease (placing less reliance on social data).
+
+Other ways:
+
+- In cases where rewards are absent or delayed , you can use pseudo-rewards  from the aggregated social policy to simulate a reward signal for guiding learning. This ensures that the agent does not entirely rely on its sparse personal reward data and misguide itself.
+
+- The decay rate of ϵ (exploration) should be tuned based on how sparse  the rewards are. If rewards are very sparse, consider slower decay  of ϵ, allowing for extended exploration periods, supported by social data. You could also dynamically adjust ϵ based on the frequency of received rewards: if rewards occur very infrequently over a set of trials, ϵ decays at a slower rate to allow ongoing exploration.
+     
+
+### Implementation
+
+![Social Learning Plot](plots/social-mobile.png)
+
+As you can see, social helps the agent learn faster and better, because it improves the cumulative rewards the agent receives. 
+
+> **Note**: **Social learning** can significantly accelerate an agent's learning by utilizing the observed policies of other agents, especially when rewards are sparse. When the actions of these other agents align well with the agent's optimal policy, social learning helps guide exploration toward effective actions, improving cumulative rewards and reducing regret. However, if the other agents follow policies that are substantially different from what is optimal for the learning agent, social learning can backfire, leading to **misguidance and confused exploration**.
+>
+> The effectiveness of social learning depends on the **similarity** between the observed agents' policies and the optimal policy for the learning agent. To mitigate the risks of negative influence, a balanced approach is essential—starting with more reliance on social information and gradually shifting towards the agent’s individual learning as it receives more personalized feedback. Additionally, selective and adaptive methods, such as measuring policy similarity and assigning appropriate weights to different agents, can help avoid the pitfalls of misalignment while still leveraging the benefits of social learning when valuable.
